@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sentinel Watch Dashboard</title>
+  <meta name="description" content="Live traffic and security signal dashboard with explainable metrics." />
+  <link rel="preconnect" href="https://unpkg.com" />
+  <link rel="preconnect" href="https://api.fontshare.com" />
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&f[]=cabinet-grotesk@500,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <style>
+    :root,[data-theme="light"] {
+      --text-xs: clamp(.75rem,.7rem + .25vw,.875rem);
+      --text-sm: clamp(.875rem,.8rem + .35vw,1rem);
+      --text-base: clamp(1rem,.95rem + .25vw,1.125rem);
+      --text-lg: clamp(1.125rem,1rem + .75vw,1.5rem);
+      --text-xl: clamp(1.5rem,1.2rem + 1.25vw,2.25rem);
+      --space-1:.25rem; --space-2:.5rem; --space-3:.75rem; --space-4:1rem; --space-5:1.25rem; --space-6:1.5rem; --space-8:2rem; --space-10:2.5rem; --space-12:3rem; --space-16:4rem;
+      --color-bg:#f7f6f2; --color-surface:#f9f8f5; --color-surface-2:#fbfbf9; --color-surface-offset:#f3f0ec; --color-border:#d4d1ca; --color-divider:#dcd9d5;
+      --color-text:#28251d; --color-text-muted:#6d6b67; --color-text-faint:#9e9c98; --color-text-inverse:#f9f8f4;
+      --color-primary:#01696f; --color-primary-hover:#0c4e54; --color-blue:#006494; --color-warning:#964219; --color-error:#a12c7b; --color-success:#437a22;
+      --shadow-sm:0 1px 2px rgba(0,0,0,.06); --shadow-md:0 6px 24px rgba(0,0,0,.08); --radius-md:.75rem; --radius-lg:1rem; --radius-xl:1.25rem;
+      --font-body:'Satoshi', Inter, sans-serif; --font-display:'Cabinet Grotesk', 'Satoshi', sans-serif;
+    }
+    [data-theme="dark"] {
+      --color-bg:#171614; --color-surface:#1c1b19; --color-surface-2:#201f1d; --color-surface-offset:#252320; --color-border:#393836; --color-divider:#2b2a28;
+      --color-text:#ece8e1; --color-text-muted:#b0aba3; --color-text-faint:#7d7a74; --color-text-inverse:#171614;
+      --color-primary:#4f98a3; --color-primary-hover:#74b1ba; --color-blue:#5591c7; --color-warning:#e19d3c; --color-error:#d163a7; --color-success:#6daa45;
+      --shadow-sm:0 1px 2px rgba(0,0,0,.25); --shadow-md:0 10px 32px rgba(0,0,0,.35);
+    }
+    * { box-sizing:border-box; }
+    html, body { margin:0; min-height:100%; background:var(--color-bg); color:var(--color-text); font-family:var(--font-body); font-size:var(--text-base); }
+    body { line-height:1.5; }
+    button, select, input { font:inherit; color:inherit; }
+    a { color:var(--color-primary-hover); }
+    .shell { display:grid; grid-template-columns: 320px minmax(0,1fr); min-height:100vh; }
+    .sidebar { background:linear-gradient(180deg, var(--color-surface), var(--color-surface-2)); border-right:1px solid rgba(255,255,255,.08); padding:var(--space-6); position:sticky; top:0; height:100vh; overflow:auto; }
+    .brand { display:flex; align-items:center; gap:var(--space-3); margin-bottom:var(--space-6); }
+    .logo { width:38px; height:38px; border-radius:12px; background:linear-gradient(135deg,var(--color-primary),transparent); display:grid; place-items:center; border:1px solid rgba(255,255,255,.12); }
+    .logo svg { width:22px; height:22px; }
+    h1,h2,h3 { font-family:var(--font-display); line-height:1.1; margin:0; }
+    h1 { font-size:var(--text-xl); letter-spacing:-.03em; }
+    h2 { font-size:1.1rem; margin-bottom:var(--space-3); }
+    p { margin:0; color:var(--color-text-muted); }
+    .stack { display:grid; gap:var(--space-4); }
+    .panel { background:var(--color-surface); border:1px solid color-mix(in oklab, var(--color-text) 10%, transparent); border-radius:var(--radius-lg); box-shadow:var(--shadow-sm); padding:var(--space-4); }
+    .panel strong { color:var(--color-text); }
+    .controls { display:grid; gap:var(--space-3); margin-bottom:var(--space-6); }
+    .control label { display:block; font-size:var(--text-xs); color:var(--color-text-muted); margin-bottom:var(--space-2); text-transform:uppercase; letter-spacing:.08em; }
+    .control select, .control input { width:100%; padding:.85rem 1rem; border-radius:var(--radius-md); border:1px solid color-mix(in oklab, var(--color-text) 12%, transparent); background:var(--color-surface-offset); }
+    .control-row { display:grid; grid-template-columns:1fr 1fr; gap:var(--space-3); }
+    .theme-toggle, .refresh { width:100%; padding:.9rem 1rem; border-radius:var(--radius-md); border:1px solid color-mix(in oklab, var(--color-text) 10%, transparent); background:var(--color-surface-offset); cursor:pointer; }
+    .refresh.primary { background:var(--color-primary); color:var(--color-text-inverse); border-color:transparent; }
+    .main { display:grid; grid-template-rows:auto auto minmax(420px,1fr) auto; gap:var(--space-4); padding:var(--space-4); }
+    .hero { display:flex; justify-content:space-between; gap:var(--space-4); align-items:flex-end; background:linear-gradient(160deg, color-mix(in oklab, var(--color-primary) 18%, var(--color-surface)), var(--color-surface)); border:1px solid color-mix(in oklab, var(--color-text) 10%, transparent); border-radius:var(--radius-xl); padding:var(--space-6); }
+    .hero .meta { display:flex; gap:var(--space-3); flex-wrap:wrap; margin-top:var(--space-3); }
+    .chip { padding:.45rem .75rem; border-radius:999px; background:color-mix(in oklab, var(--color-primary) 16%, var(--color-surface)); color:var(--color-text); font-size:var(--text-xs); border:1px solid color-mix(in oklab, var(--color-primary) 32%, transparent); }
+    .metrics { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:var(--space-4); }
+    .metric { background:var(--color-surface); border:1px solid color-mix(in oklab, var(--color-text) 10%, transparent); border-radius:var(--radius-lg); padding:var(--space-4); cursor:pointer; text-align:left; }
+    .metric:hover { border-color:color-mix(in oklab, var(--color-primary) 42%, transparent); transform:translateY(-1px); }
+    .metric small { display:block; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:var(--space-2); }
+    .metric .value { font:700 clamp(1.5rem,2vw,2.35rem)/1 var(--font-display); }
+    .metric .sub { font-size:var(--text-sm); color:var(--color-text-muted); margin-top:var(--space-2); }
+    .content { display:grid; grid-template-columns:minmax(0,1.45fr) minmax(320px,.85fr); gap:var(--space-4); min-height:0; }
+    .map-card, .feed-card, .sources-card { min-height:0; }
+    #map { width:100%; min-height:520px; border-radius:var(--radius-lg); }
+    .feed-list, .sources-list { display:grid; gap:var(--space-3); max-height:520px; overflow:auto; }
+    .feed-item, .source-item { padding:var(--space-3); background:var(--color-surface-offset); border-radius:var(--radius-md); border:1px solid color-mix(in oklab, var(--color-text) 8%, transparent); }
+    .feed-item h3, .source-item h3 { font-family:var(--font-body); font-size:1rem; margin-bottom:.35rem; }
+    .feed-meta { display:flex; gap:var(--space-2); flex-wrap:wrap; margin-top:.5rem; }
+    .pill { font-size:var(--text-xs); border-radius:999px; padding:.3rem .55rem; background:color-mix(in oklab, var(--color-blue) 18%, var(--color-surface)); }
+    .status { font-size:var(--text-sm); }
+    .legend { display:flex; gap:var(--space-3); flex-wrap:wrap; margin-top:var(--space-3); }
+    .dot { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:.4rem; }
+    .footer-panels { display:grid; grid-template-columns: 1fr 1fr; gap:var(--space-4); }
+    .method-list { display:grid; gap:var(--space-2); }
+    .method-list button { text-align:left; padding:var(--space-3); border-radius:var(--radius-md); background:var(--color-surface-offset); border:1px solid color-mix(in oklab, var(--color-text) 10%, transparent); cursor:pointer; }
+    dialog { width:min(780px, calc(100vw - 2rem)); border:none; border-radius:var(--radius-xl); padding:0; background:var(--color-surface); color:var(--color-text); box-shadow:var(--shadow-md); }
+    dialog::backdrop { background:rgba(0,0,0,.55); }
+    .modal-head, .modal-body { padding:var(--space-5); }
+    .modal-head { display:flex; justify-content:space-between; gap:var(--space-4); align-items:flex-start; border-bottom:1px solid color-mix(in oklab, var(--color-text) 8%, transparent); }
+    .close { padding:.7rem 1rem; border-radius:999px; background:var(--color-surface-offset); border:1px solid color-mix(in oklab, var(--color-text) 10%, transparent); cursor:pointer; }
+    .analysis-grid { display:grid; gap:var(--space-4); }
+    .analysis-grid .box { background:var(--color-surface-offset); padding:var(--space-4); border-radius:var(--radius-lg); }
+    .helper { font-size:var(--text-sm); color:var(--color-text-muted); }
+    .notice { font-size:var(--text-xs); color:var(--color-text-faint); margin-top:var(--space-2); }
+    @media (max-width: 1100px) {
+      .shell { grid-template-columns:1fr; }
+      .sidebar { position:relative; height:auto; border-right:none; border-bottom:1px solid rgba(255,255,255,.08); }
+      .metrics, .content, .footer-panels { grid-template-columns:1fr; }
+      .main { grid-template-rows:auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 4 8v8l8 5 8-5V8l-8-5Z"></path><path d="m12 7-4 2.5v5L12 17l4-2.5v-5L12 7Z"></path></svg>
+        </div>
+        <div>
+          <h1>Sentinel Watch</h1>
+          <p>Explainable live dashboard for traffic stress and security signals.</p>
+        </div>
+      </div>
+
+      <section class="controls">
+        <div class="control">
+          <label for="regionSelect">Region</label>
+          <select id="regionSelect"></select>
+        </div>
+        <div class="control-row">
+          <div class="control">
+            <label for="refreshSelect">Refresh</label>
+            <select id="refreshSelect">
+              <option value="30">30 sec</option>
+              <option value="60" selected>60 sec</option>
+              <option value="120">2 min</option>
+            </select>
+          </div>
+          <div class="control">
+            <label for="signalWindow">Signal window</label>
+            <select id="signalWindow">
+              <option value="15" selected>15 min</option>
+              <option value="30">30 min</option>
+              <option value="60">60 min</option>
+            </select>
+          </div>
+        </div>
+        <button class="refresh primary" id="refreshBtn">Refresh now</button>
+        <button class="theme-toggle" id="themeBtn">Toggle theme</button>
+        <p class="helper">For production, connect HERE traffic through <code>/api/traffic</code> and a social collector through <code>/api/signals</code>.</p>
+      </section>
+
+      <section class="panel stack">
+        <div>
+          <h2>Method cards</h2>
+          <p>Each score is clickable inside the dashboard. Analysts can inspect formulas, thresholds, and source links without leaving the page.</p>
+        </div>
+        <div class="method-list" id="methodButtons"></div>
+      </section>
+
+      <section class="panel stack">
+        <div>
+          <h2>Source notes</h2>
+          <p class="helper">X real-time delivery is server-side, while HERE traffic can be polled at short intervals through a backend proxy.</p>
+        </div>
+        <p class="notice">This UI is designed for watchlisting and triage, not for automated enforcement or unilateral threat claims.</p>
+      </section>
+    </aside>
+
+    <main class="main">
+      <section class="hero">
+        <div>
+          <h2 style="font-size: clamp(2rem, 4vw, 3rem); margin-bottom: .65rem;">Live regional pressure map</h2>
+          <p id="heroText">Monitoring a selected hotspot for traffic friction, incident clustering, and surge-like narrative signals.</p>
+          <div class="meta">
+            <span class="chip" id="lastUpdated">Awaiting first update</span>
+            <span class="chip" id="dataHealth">Source status pending</span>
+            <span class="chip" id="modeChip">Mode: live traffic + configurable signals</span>
+          </div>
+        </div>
+        <div class="panel" style="max-width: 420px;">
+          <strong>How to use</strong>
+          <p>Pick a region, inspect the watch score, then click any metric tile for the exact method and data source behind that number.</p>
+        </div>
+      </section>
+
+      <section class="metrics" id="metrics"></section>
+
+      <section class="content">
+        <article class="panel map-card">
+          <h2>Operational map</h2>
+          <p class="helper">Traffic incident markers and monitored points render here. Click a marker to inspect its category and severity.</p>
+          <div id="map" role="img" aria-label="Regional traffic and incident map"></div>
+          <div class="legend">
+            <span><span class="dot" style="background:#6daa45"></span>Low</span>
+            <span><span class="dot" style="background:#e19d3c"></span>Moderate</span>
+            <span><span class="dot" style="background:#d163a7"></span>High</span>
+            <span><span class="dot" style="background:#5591c7"></span>Signal source</span>
+          </div>
+        </article>
+
+        <article class="panel feed-card">
+          <h2>Live signal feed</h2>
+          <p class="helper">This panel expects JSON from a collector, webhook receiver, or curated feed that already passed your legal and trust filters.</p>
+          <div class="feed-list" id="feedList"></div>
+        </article>
+      </section>
+
+      <section class="footer-panels">
+        <article class="panel sources-card">
+          <h2>Embedded sources</h2>
+          <p class="helper">These links are shown inside the page so reviewers can audit how the dashboard is built.</p>
+          <div class="sources-list" id="sourcesList"></div>
+        </article>
+
+        <article class="panel">
+          <h2>Scoring logic</h2>
+          <div class="analysis-grid">
+            <div class="box">
+              <strong>Traffic strain</strong>
+              <p>Combines average jam factor, closure ratio, and incident density normalized to the region footprint.</p>
+            </div>
+            <div class="box">
+              <strong>Signal acceleration</strong>
+              <p>Measures velocity of matched posts or statements in the selected window, then weights them by source credibility and geo relevance.</p>
+            </div>
+            <div class="box">
+              <strong>Convergence watch score</strong>
+              <p>Blends transport and narrative signals into a single 0 to 100 watch score with explainable weights.</p>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="explainDialog">
+    <div class="modal-head">
+      <div>
+        <h2 id="dialogTitle">Metric</h2>
+        <p id="dialogLead"></p>
+      </div>
+      <button class="close" id="closeDialog">Close</button>
+    </div>
+    <div class="modal-body" id="dialogBody"></div>
+  </dialog>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    const regions = {
+      middleEast: { name: 'Middle East / Gulf corridor', center: [26.2, 51.6], zoom: 6, bbox: [48.4, 24.0, 54.6, 28.5], description: 'Ports, Gulf corridors, choke points, and cross-border movement.' },
+      taiwan: { name: 'Taiwan Strait', center: [24.0, 121.0], zoom: 7, bbox: [119.2, 22.1, 122.7, 25.7], description: 'Island transport corridors, ports, and maritime-adjacent urban nodes.' },
+      westCoast: { name: 'US West Coast', center: [34.05, -118.25], zoom: 6, bbox: [-123.4, 32.0, -117.0, 38.8], description: 'West-coast metro corridors and port-linked surface traffic.' },
+      eastAfrica: { name: 'East Africa gateway', center: [-1.29, 36.82], zoom: 6, bbox: [35.5, -3.3, 38.6, 0.9], description: 'Urban connector routes and cross-border logistics corridors.' }
+    };
+
+    const sources = [
+      { title: 'X Filtered Stream', blurb: 'Real-time post delivery uses rules and either a persistent stream or webhook delivery.', href: 'https://docs.x.com/x-api/posts/filtered-stream/introduction' },
+      { title: 'X Filtered Stream Webhooks', blurb: 'Webhook delivery is server-side and suited for production ingestion.', href: 'https://docs.x.com/x-api/webhooks/stream/quickstart' },
+      { title: 'HERE Real-Time Traffic', blurb: 'Traffic flow and incident data can be requested for a geographic area.', href: 'https://www.here.com/docs/search?labelkey=developer_guide&page=57' },
+      { title: 'Vercel environment variables', blurb: 'API keys and feed URLs belong in env vars, not in client JavaScript.', href: 'https://vercel.com/docs/environment-variables' },
+      { title: 'DHS social media privacy guidance', blurb: 'Use public data, minimize collection, and keep audit trails.', href: 'https://publicintelligence.net/dhs-social-media/' }
+    ];
+
+    const metricDocs = {
+      incidents: {
+        title: 'Incident pressure',
+        lead: 'Weighted count of active disruptions inside the selected region.',
+        body: `
+          <div class="analysis-grid">
+            <div class="box"><strong>What goes in</strong><p>Incident count, criticality labels, closures, construction, road restrictions, and density per region box.</p></div>
+            <div class="box"><strong>How it is measured</strong><p>Each incident contributes a base value. Road closures and high criticality receive higher weights, then the total is normalized to a 0-100 scale.</p></div>
+            <div class="box"><strong>Why it matters</strong><p>When closures and high-severity incidents cluster, surface mobility drops and the probability of cascading disruption rises.</p></div>
+          </div>`
+      },
+      strain: {
+        title: 'Traffic strain',
+        lead: 'Proxy for congestion stress in the watch area.',
+        body: `
+          <div class="analysis-grid">
+            <div class="box"><strong>What goes in</strong><p>Average jam factor when flow data is present; fallback uses incident density and closure share.</p></div>
+            <div class="box"><strong>How it is measured</strong><p>The score prioritizes mean jam factor, then adds penalties for closures and high incident concentration. Missing flow data reduces certainty and is flagged in source health.</p></div>
+            <div class="box"><strong>Why it matters</strong><p>Transport systems under stress often show abnormal dwell time, corridor bottlenecks, and degraded response routes.</p></div>
+          </div>`
+      },
+      closures: {
+        title: 'Closure ratio',
+        lead: 'Share of incidents that directly block or severely constrain movement.',
+        body: `
+          <div class="analysis-grid">
+            <div class="box"><strong>What goes in</strong><p>Road closed, lane blocked, restricted flow, and equivalent incident classes from the traffic provider.</p></div>
+            <div class="box"><strong>How it is measured</strong><p>Closure-type incidents are divided by the total active incidents, then displayed as a percentage and translated into the watch score.</p></div>
+            <div class="box"><strong>Why it matters</strong><p>A corridor with fewer incidents but more closures can be more operationally sensitive than a busier corridor with minor slowdowns.</p></div>
+          </div>`
+      },
+      signals: {
+        title: 'Signal acceleration',
+        lead: 'Velocity of matched narrative events in the selected time window.',
+        body: `
+          <div class="analysis-grid">
+            <div class="box"><strong>What goes in</strong><p>Timestamped statements from your collector, plus source credibility, location relevance, and keyword class.</p></div>
+            <div class="box"><strong>How it is measured</strong><p>Events are counted in the selected window and compared against a baseline. Each event can be weighted by confidence and proximity to the region.</p></div>
+            <div class="box"><strong>Why it matters</strong><p>The dashboard does not treat sentiment alone as a threat. It only raises watch pressure when narratives accelerate around a place or route.</p></div>
+          </div>`
+      },
+      watch: {
+        title: 'Convergence watch score',
+        lead: 'Blended regional watch score from 0 to 100.',
+        body: `
+          <div class="analysis-grid">
+            <div class="box"><strong>Formula</strong><p>Default blend: 45% traffic strain, 35% incident pressure, and 20% signal acceleration. You can adjust weights in the client script to fit your policy model.</p></div>
+            <div class="box"><strong>Interpretation</strong><p>0-29 low watch, 30-59 moderate, 60-79 elevated, 80-100 critical review. The score is for triage, not automated enforcement.</p></div>
+            <div class="box"><strong>Auditability</strong><p>Each component remains clickable so analysts can verify the contribution behind the composite number.</p></div>
+          </div>`
+      }
+    };
+
+    Object.entries(regions).forEach(([key, item]) => {
+      const opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = item.name;
+      regionSelect.appendChild(opt);
+    });
+
+    const map = L.map('map', { zoomControl: true }).setView(regions.middleEast.center, regions.middleEast.zoom);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    let incidentLayer = L.layerGroup().addTo(map);
+    let signalLayer = L.layerGroup().addTo(map);
+    let refreshTimer = null;
+
+    function riskColor(score) {
+      if (score >= 80) return '#d163a7';
+      if (score >= 50) return '#e19d3c';
+      return '#6daa45';
+    }
+
+    function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
+
+    function renderSources() {
+      sourcesList.innerHTML = '';
+      sources.forEach(src => {
+        const el = document.createElement('div');
+        el.className = 'source-item';
+        el.innerHTML = `<h3>${src.title}</h3><p>${src.blurb}</p><div class="feed-meta"><span class="pill">Reference</span><a href="${src.href}" target="_blank" rel="noopener noreferrer">Open source</a></div>`;
+        sourcesList.appendChild(el);
+      });
+    }
+
+    function renderMethodButtons() {
+      methodButtons.innerHTML = '';
+      Object.entries(metricDocs).forEach(([key, doc]) => {
+        const btn = document.createElement('button');
+        btn.textContent = doc.title;
+        btn.addEventListener('click', () => openDialog(key));
+        methodButtons.appendChild(btn);
+      });
+    }
+
+    function openDialog(key) {
+      const doc = metricDocs[key];
+      dialogTitle.textContent = doc.title;
+      dialogLead.textContent = doc.lead;
+      dialogBody.innerHTML = doc.body + `<div class="box" style="margin-top:1rem;"><strong>Source links</strong><p><a href="https://docs.x.com/x-api/posts/filtered-stream/introduction" target="_blank" rel="noopener noreferrer">X Filtered Stream</a>, <a href="https://docs.x.com/x-api/webhooks/stream/quickstart" target="_blank" rel="noopener noreferrer">X Webhooks</a>, <a href="https://www.here.com/docs/search?labelkey=developer_guide&page=57" target="_blank" rel="noopener noreferrer">HERE Real-Time Traffic</a>, <a href="https://vercel.com/docs/environment-variables" target="_blank" rel="noopener noreferrer">Vercel env vars</a>.</p></div>`;
+      explainDialog.showModal();
+    }
+
+    function metricCard(key, label, value, sub, score) {
+      const btn = document.createElement('button');
+      btn.className = 'metric';
+      btn.addEventListener('click', () => openDialog(key));
+      btn.innerHTML = `<small>${label}</small><div class="value" style="color:${riskColor(score)}">${value}</div><div class="sub">${sub}</div>`;
+      return btn;
+    }
+
+    function setHero(regionKey) {
+      const r = regions[regionKey];
+      heroText.textContent = r.description;
+      map.setView(r.center, r.zoom);
+    }
+
+    function fmtAgo(dateStr) {
+      const diff = Math.max(0, Date.now() - new Date(dateStr).getTime());
+      const mins = Math.round(diff / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return `${mins} min ago`;
+      return `${Math.round(mins / 60)} hr ago`;
+    }
+
+    async function fetchJSON(url) {
+      const res = await fetch(url, { headers: { 'accept': 'application/json' } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    }
+
+    function normalizeTraffic(payload) {
+      const incidents = payload.incidents || [];
+      const flow = payload.flow || [];
+      const active = incidents.length;
+      const closureCount = incidents.filter(x => /close|blocked|restriction/i.test((x.type || '') + ' ' + (x.description || ''))).length;
+      const severeCount = incidents.filter(x => /high|major|critical/i.test((x.criticality || '') + ' ' + (x.severity || ''))).length;
+      const avgJam = flow.length ? flow.reduce((a, b) => a + (Number(b.jamFactor || 0)), 0) / flow.length : 0;
+      const incidentPressure = clamp((active * 8) + (closureCount * 12) + (severeCount * 10), 0, 100);
+      const strain = clamp((avgJam * 9) + (closureCount * 6) + Math.min(active, 8) * 3, 0, 100);
+      return { incidents, flow, active, closureCount, severeCount, avgJam, incidentPressure, strain };
+    }
+
+    function normalizeSignals(payload, windowMinutes) {
+      const items = (payload.items || []).map(x => ({ ...x, score: Number(x.score || 0), credibility: Number(x.credibility || 0.5) }));
+      const cutoff = Date.now() - (windowMinutes * 60 * 1000);
+      const inWindow = items.filter(x => new Date(x.time).getTime() >= cutoff);
+      const accel = clamp(inWindow.reduce((a, b) => a + ((b.score || 1) * (b.credibility || 0.5) * 10), 0), 0, 100);
+      return { items, inWindow, accel };
+    }
+
+    function renderMap(traffic, signals) {
+      incidentLayer.clearLayers();
+      signalLayer.clearLayers();
+      traffic.incidents.forEach(item => {
+        if (!Array.isArray(item.position)) return;
+        const severityScore = /high|major|critical/i.test((item.criticality || '') + ' ' + (item.severity || '')) ? 82 : /minor|low/i.test((item.criticality || '') + ' ' + (item.severity || '')) ? 28 : 55;
+        L.circleMarker(item.position, {
+          radius: 7,
+          color: riskColor(severityScore),
+          fillColor: riskColor(severityScore),
+          fillOpacity: .8,
+          weight: 1
+        }).bindPopup(`<strong>${item.type || 'Incident'}</strong><br>${item.description || 'No description'}<br><small>${item.criticality || item.severity || 'Unclassified'}</small>`).addTo(incidentLayer);
+      });
+      signals.inWindow.forEach(item => {
+        if (!Array.isArray(item.position)) return;
+        L.circleMarker(item.position, {
+          radius: 6,
+          color: '#5591c7', fillColor: '#5591c7', fillOpacity: .75, weight: 1
+        }).bindPopup(`<strong>${item.title || 'Signal'}</strong><br>${item.summary || ''}<br><small>${item.source || 'Feed'} · ${fmtAgo(item.time)}</small>`).addTo(signalLayer);
+      });
+    }
+
+    function renderFeed(items) {
+      feedList.innerHTML = '';
+      if (!items.length) {
+        feedList.innerHTML = '<div class="feed-item"><h3>No recent signal items</h3><p>Connect a collector to <code>/api/signals</code> or set <code>SIGNALS_JSON_URL</code> in Vercel to populate this panel.</p></div>';
+        return;
+      }
+      items.slice(0, 15).forEach(item => {
+        const el = document.createElement('div');
+        el.className = 'feed-item';
+        el.innerHTML = `<h3>${item.title || 'Signal item'}</h3><p>${item.summary || 'No summary provided.'}</p><div class="feed-meta"><span class="pill">${item.source || 'Feed'}</span><span class="pill">Credibility ${(Number(item.credibility || .5) * 100).toFixed(0)}%</span><span class="pill">${fmtAgo(item.time)}</span>${item.url ? `<a href="${item.url}" target="_blank" rel="noopener noreferrer">Source</a>` : ''}</div>`;
+        feedList.appendChild(el);
+      });
+    }
+
+    function renderMetrics(traffic, signals) {
+      const windowMinutes = Number(signalWindow.value || 15);
+      const watch = clamp((traffic.strain * 0.45) + (traffic.incidentPressure * 0.35) + (signals.accel * 0.20), 0, 100);
+      metrics.innerHTML = '';
+      metrics.appendChild(metricCard('incidents', 'Incident pressure', `${Math.round(traffic.incidentPressure)}`, `${traffic.active} active incidents`, traffic.incidentPressure));
+      metrics.appendChild(metricCard('strain', 'Traffic strain', `${Math.round(traffic.strain)}`, `${traffic.avgJam ? traffic.avgJam.toFixed(1) : 'n/a'} mean jam factor`, traffic.strain));
+      metrics.appendChild(metricCard('closures', 'Closure ratio', `${traffic.active ? Math.round((traffic.closureCount / traffic.active) * 100) : 0}%`, `${traffic.closureCount} movement-constraining items`, 35 + traffic.closureCount * 8));
+      metrics.appendChild(metricCard('signals', 'Signal acceleration', `${Math.round(signals.accel)}`, `${signals.inWindow.length} items in ${windowMinutes} min`, signals.accel));
+      metrics.appendChild(metricCard('watch', 'Watch score', `${Math.round(watch)}`, watch >= 80 ? 'Critical review' : watch >= 60 ? 'Elevated' : watch >= 30 ? 'Moderate watch' : 'Low watch', watch));
+    }
+
+    async function refreshData() {
+      const regionKey = regionSelect.value || 'middleEast';
+      const region = regions[regionKey];
+      dataHealth.textContent = 'Source status: updating';
+      try {
+        const [trafficRaw, signalsRaw] = await Promise.all([
+          fetchJSON(`/api/traffic?bbox=${region.bbox.join(',')}&region=${regionKey}`),
+          fetchJSON(`/api/signals?region=${regionKey}&window=${signalWindow.value || 15}`)
+        ]);
+        const traffic = normalizeTraffic(trafficRaw);
+        const signals = normalizeSignals(signalsRaw, Number(signalWindow.value || 15));
+        renderMetrics(traffic, signals);
+        renderMap(traffic, signals);
+        renderFeed(signals.items);
+        lastUpdated.textContent = `Updated ${new Date().toLocaleTimeString()}`;
+        dataHealth.textContent = `Source status: ${trafficRaw.mode || 'live'} traffic, ${signalsRaw.mode || 'feed'} signals`;
+      } catch (err) {
+        dataHealth.textContent = `Source status: degraded (${err.message})`;
+        feedList.innerHTML = `<div class="feed-item"><h3>Source error</h3><p>${err.message}</p></div>`;
+      }
+    }
+
+    function setupTimers() {
+      if (refreshTimer) clearInterval(refreshTimer);
+      refreshTimer = setInterval(refreshData, Number(refreshSelect.value) * 1000);
+    }
+
+    themeBtn.addEventListener('click', () => {
+      document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    });
+    refreshBtn.addEventListener('click', refreshData);
+    closeDialog.addEventListener('click', () => explainDialog.close());
+    regionSelect.addEventListener('change', () => { setHero(regionSelect.value); refreshData(); });
+    refreshSelect.addEventListener('change', setupTimers);
+    signalWindow.addEventListener('change', refreshData);
+
+    regionSelect.value = 'middleEast';
+    renderSources();
+    renderMethodButtons();
+    setHero('middleEast');
+    setupTimers();
+    refreshData();
+  </script>
+</body>
+</html>
