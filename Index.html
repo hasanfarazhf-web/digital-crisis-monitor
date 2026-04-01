@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Digital Crisis Monitor</title>
+  <meta name="description" content="Live crisis watch landing page with rotating signal slideshow and regional quick-look map." />
+  <link rel="preconnect" href="https://api.fontshare.com" />
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&f[]=cabinet-grotesk@500,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <style>
+    :root,[data-theme="light"]{--bg:#f6f5f2;--surface:#fcfbf8;--surface2:#f1eee9;--text:#22201c;--muted:#66625d;--border:#d6d0c8;--primary:#0d6b73;--accent:#1b8ea0;--danger:#bf4f8d;--warn:#ca8e28;--ok:#4d8b28;--blue:#2f71bc;--shadow:0 12px 32px rgba(0,0,0,.08);--radius:20px;--radius-sm:14px;--font-body:'Satoshi',sans-serif;--font-display:'Cabinet Grotesk','Satoshi',sans-serif;}
+    [data-theme="dark"]{--bg:#121110;--surface:#1a1917;--surface2:#24211f;--text:#f0ebe3;--muted:#b6afa5;--border:#393531;--primary:#4f98a3;--accent:#6db7c4;--danger:#d163a7;--warn:#e3a43b;--ok:#75b44d;--blue:#72a7df;--shadow:0 18px 40px rgba(0,0,0,.38);}
+    *{box-sizing:border-box}html,body{margin:0;padding:0;background:radial-gradient(circle at top,var(--surface2),var(--bg) 34%);color:var(--text);font-family:var(--font-body)}a{color:inherit;text-decoration:none}button,input,select{font:inherit}
+    .topbar{position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:center;padding:16px 24px;background:color-mix(in oklab,var(--bg) 82%,transparent);backdrop-filter:blur(14px);border-bottom:1px solid color-mix(in oklab,var(--text) 10%,transparent)}
+    .brand{display:flex;align-items:center;gap:12px}.logo{width:40px;height:40px;border-radius:14px;background:linear-gradient(135deg,var(--primary),transparent);display:grid;place-items:center;border:1px solid color-mix(in oklab,var(--text) 12%,transparent)}
+    .brand h1{margin:0;font:700 clamp(1.2rem,2vw,1.6rem)/1 var(--font-display)}.brand p{margin:4px 0 0;color:var(--muted);font-size:.92rem}
+    .nav{display:flex;gap:12px;flex-wrap:wrap}.nav a,.theme-btn{padding:10px 14px;border:1px solid color-mix(in oklab,var(--text) 10%,transparent);border-radius:999px;background:color-mix(in oklab,var(--surface) 82%,transparent)}
+    .page{max-width:1320px;margin:0 auto;padding:28px}
+    .hero{display:grid;grid-template-columns:1.15fr .85fr;gap:22px;align-items:stretch;padding-top:18px}
+    .card{background:color-mix(in oklab,var(--surface) 92%,transparent);border:1px solid color-mix(in oklab,var(--text) 10%,transparent);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .hero-main{padding:28px}.eyebrow{display:inline-flex;gap:10px;align-items:center;padding:8px 12px;border-radius:999px;background:color-mix(in oklab,var(--primary) 15%,var(--surface));font-size:.85rem;color:var(--muted);margin-bottom:18px}
+    .hero-main h2{margin:0 0 14px;font:700 clamp(2.2rem,5vw,4.6rem)/.95 var(--font-display);letter-spacing:-.05em;max-width:11ch}.hero-main p{margin:0 0 18px;color:var(--muted);font-size:1.05rem;max-width:62ch}
+    .hero-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:22px}.btn{padding:13px 16px;border-radius:14px;border:1px solid color-mix(in oklab,var(--text) 10%,transparent)}.btn.primary{background:var(--primary);color:#fff;border-color:transparent}.btn.secondary{background:var(--surface2)}
+    .hero-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}.mini{padding:16px;border-radius:18px;background:var(--surface2)}.mini span{display:block;color:var(--muted);font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}.mini strong{font:700 1.6rem/1 var(--font-display)}
+    .slideshow{padding:24px;display:grid;grid-template-rows:auto 1fr auto;gap:14px;min-height:100%}.slideshow h3{margin:0;font:700 1.12rem/1.1 var(--font-display)}.slide{padding:20px;border-radius:18px;background:linear-gradient(180deg,color-mix(in oklab,var(--blue) 12%,var(--surface2)),var(--surface));min-height:260px;display:grid;align-content:start;gap:12px}.badge-row{display:flex;flex-wrap:wrap;gap:8px}.badge{padding:6px 10px;border-radius:999px;font-size:.78rem;background:color-mix(in oklab,var(--primary) 16%,var(--surface));border:1px solid color-mix(in oklab,var(--text) 10%,transparent)}.slide h4{margin:0;font:700 clamp(1.2rem,2vw,1.8rem)/1.06 var(--font-display)}.slide p{margin:0;color:var(--muted)}.ticker{display:grid;gap:10px}.ticker-item{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:14px;background:var(--surface2)}.ticker-dot{width:10px;height:10px;border-radius:50%;margin-top:6px;background:var(--danger)}
+    .section{margin-top:22px}.section-head{display:flex;justify-content:space-between;align-items:end;gap:14px;margin-bottom:14px}.section-head h3{margin:0;font:700 1.5rem var(--font-display)}.section-head p{margin:0;color:var(--muted)}
+    .quicklook{display:grid;grid-template-columns:1.1fr .9fr;gap:22px}.map-card{padding:18px}#quickMap{height:460px;border-radius:18px;overflow:hidden}.legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}.legend span{display:inline-flex;gap:8px;align-items:center;padding:8px 12px;border-radius:999px;background:var(--surface2);font-size:.86rem}.sw{width:12px;height:12px;border-radius:50%}
+    .right-stack{display:grid;gap:16px}.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.stat{padding:18px;border-radius:18px;background:var(--surface2)}.stat small{display:block;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}.stat strong{font:700 1.8rem/1 var(--font-display)}.info-list{padding:18px}.info-row{padding:14px 0;border-bottom:1px solid color-mix(in oklab,var(--text) 8%,transparent)}.info-row:last-child{border-bottom:none}.info-row strong{display:block;margin-bottom:6px}
+    .footer{padding:26px 0 42px;color:var(--muted);font-size:.94rem}
+    @media (max-width:1000px){.hero,.quicklook{grid-template-columns:1fr}.hero-grid{grid-template-columns:1fr}.page{padding:18px}.stat-grid{grid-template-columns:1fr 1fr}}
+    @media (max-width:640px){.topbar{padding:14px 16px}.page{padding:14px}.nav{display:none}.stat-grid{grid-template-columns:1fr}.hero-main h2{max-width:none}.slideshow{padding:18px}}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 4 8v8l8 5 8-5V8l-8-5Z"></path><path d="M8 10.5 12 8l4 2.5v5L12 18l-4-2.5Z"></path></svg></div>
+      <div><h1>Digital Crisis Monitor</h1><p>Live watch surface for traffic stress and narrative signals</p></div>
+    </div>
+    <nav class="nav">
+      <a href="index.html">Home</a>
+      <a href="analysis.html">Analysis</a>
+      <a href="sources.html">Sources</a>
+      <button class="theme-btn" id="themeBtn">Theme</button>
+    </nav>
+  </header>
+
+  <main class="page">
+    <section class="hero">
+      <article class="card hero-main">
+        <div class="eyebrow">Live overview <span id="lastUpdated">Updating…</span></div>
+        <h2>See pressure build before it cascades.</h2>
+        <p>This landing page is your fast read: live rotating signal cards, a regional map, color-coded pressure indicators, and direct links into detailed analysis and methodology.</p>
+        <div class="hero-actions">
+          <a class="btn primary" href="analysis.html">Open analysis page</a>
+          <a class="btn secondary" href="sources.html">View sources & methods</a>
+        </div>
+        <div class="hero-grid">
+          <div class="mini"><span>Live mode</span><strong id="modeText">Traffic + signals</strong></div>
+          <div class="mini"><span>Current focus</span><strong id="regionText">Middle East</strong></div>
+          <div class="mini"><span>Refresh pace</span><strong>30 sec</strong></div>
+        </div>
+      </article>
+
+      <aside class="card slideshow">
+        <div>
+          <h3>Rotating live signal deck</h3>
+          <p style="margin:6px 0 0;color:var(--muted)">Slides rotate every 35 seconds by default. Feed items update independently from the API.</p>
+        </div>
+        <div class="slide" id="slideCard">
+          <div class="badge-row" id="slideBadges"></div>
+          <h4 id="slideTitle">Loading live signal…</h4>
+          <p id="slideSummary">Waiting for feed.</p>
+          <div class="ticker" id="tickerList"></div>
+        </div>
+        <a href="analysis.html" class="btn secondary" style="text-align:center">Open full analysis view</a>
+      </aside>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <h3>Regional quick look</h3>
+          <p>Click through to the analysis page for deeper metrics, heat layers, and explainers.</p>
+        </div>
+      </div>
+      <div class="quicklook">
+        <article class="card map-card">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+            <strong>Surface map</strong>
+            <select id="regionSelect" style="padding:10px 12px;border-radius:12px;background:var(--surface2);color:var(--text);border:1px solid color-mix(in oklab,var(--text) 10%,transparent)"></select>
+          </div>
+          <div id="quickMap"></div>
+          <div class="legend">
+            <span><i class="sw" style="background:var(--ok)"></i>Low pressure</span>
+            <span><i class="sw" style="background:var(--warn)"></i>Moderate pressure</span>
+            <span><i class="sw" style="background:var(--danger)"></i>High pressure</span>
+            <span><i class="sw" style="background:var(--blue)"></i>Signal item</span>
+          </div>
+        </article>
+        <div class="right-stack">
+          <article class="card" style="padding:18px">
+            <div class="stat-grid">
+              <div class="stat"><small>Watch score</small><strong id="watchScore">--</strong></div>
+              <div class="stat"><small>Traffic strain</small><strong id="strainScore">--</strong></div>
+              <div class="stat"><small>Signal accel.</small><strong id="signalScore">--</strong></div>
+              <div class="stat"><small>Closure ratio</small><strong id="closureScore">--</strong></div>
+            </div>
+          </article>
+          <article class="card info-list" id="miniFeed"></article>
+        </div>
+      </div>
+    </section>
+
+    <div class="footer">This page is the landing surface. Keep heavier explainers, formulas, source notes, and heatmap toggles on the dedicated pages.</div>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script>
+    const regions = {
+      middleEast:{name:'Middle East',center:[26.2,51.6],zoom:6,bbox:[48.4,24.0,54.6,28.5]},
+      taiwan:{name:'Taiwan Strait',center:[24.0,121.0],zoom:7,bbox:[119.2,22.1,122.7,25.7]},
+      westCoast:{name:'US West Coast',center:[34.05,-118.25],zoom:6,bbox:[-123.4,32.0,-117.0,38.8]},
+      eastAfrica:{name:'East Africa',center:[-1.29,36.82],zoom:6,bbox:[35.5,-3.3,38.6,0.9]}
+    };
+    const map = L.map('quickMap',{zoomControl:true,preferCanvas:true}).setView(regions.middleEast.center,regions.middleEast.zoom);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map);
+    let trafficLayer=L.layerGroup().addTo(map), signalLayer=L.layerGroup().addTo(map), signalItems=[], slideIndex=0;
+    const colorFor = s => s >= 80 ? getComputedStyle(document.documentElement).getPropertyValue('--danger').trim() : s >= 50 ? getComputedStyle(document.documentElement).getPropertyValue('--warn').trim() : getComputedStyle(document.documentElement).getPropertyValue('--ok').trim();
+
+    Object.entries(regions).forEach(([k,v])=>{const o=document.createElement('option');o.value=k;o.textContent=v.name;regionSelect.appendChild(o)});
+    regionSelect.value='middleEast';
+
+    function themeToggle(){document.documentElement.setAttribute('data-theme',document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')}
+    themeBtn.addEventListener('click',themeToggle);
+
+    async function getJson(url){const r=await fetch(url,{headers:{accept:'application/json'}});if(!r.ok)throw new Error('Request failed');return r.json();}
+    function metrics(traffic,signals){
+      const active=(traffic.incidents||[]).length;
+      const closure=(traffic.incidents||[]).filter(x=>/close|blocked|restriction/i.test((x.type||'')+' '+(x.description||''))).length;
+      const avgJam=(traffic.flow||[]).length?(traffic.flow.reduce((a,b)=>a+Number(b.jamFactor||0),0)/(traffic.flow||[]).length):0;
+      const signalAccel=Math.min(100,(signals.items||[]).reduce((a,b)=>a+((Number(b.score||0.5)*Number(b.credibility||0.5))*12),0));
+      const strain=Math.min(100,(avgJam*9)+(closure*7)+(active*4));
+      const watch=Math.min(100,(strain*.45)+(signalAccel*.2)+((active*8)*.35));
+      return {active,closure,avgJam,signalAccel,strain,watch,closureRatio:active?Math.round((closure/active)*100):0};
+    }
+    function renderMiniFeed(items){miniFeed.innerHTML='<strong style="display:block;margin-bottom:10px">Recent feed highlights</strong>'+(items.slice(0,4).map(item=>`<div class="info-row"><strong>${item.title||'Signal item'}</strong><div style="color:var(--muted)">${item.summary||''}</div></div>`).join('')||'<div class="info-row"><strong>No feed items</strong><div style="color:var(--muted)">Connect your live signals feed to populate this area.</div></div>')}
+    function renderSlide(){if(!signalItems.length){slideTitle.textContent='No live items yet';slideSummary.textContent='Connect your signals backend or wait for new feed data.';slideBadges.innerHTML='';tickerList.innerHTML='';return;} const item=signalItems[slideIndex % signalItems.length]; slideBadges.innerHTML=`<span class="badge">${item.source||'Feed'}</span><span class="badge">Credibility ${Math.round((Number(item.credibility||.5))*100)}%</span><span class="badge">${item.region||regionSelect.value}</span>`; slideTitle.textContent=item.title||'Signal item'; slideSummary.textContent=item.summary||'No summary'; tickerList.innerHTML=signalItems.slice(0,3).map(x=>`<div class="ticker-item"><span class="ticker-dot"></span><div><strong style="display:block">${x.title||'Item'}</strong><span style="color:var(--muted)">${x.summary||''}</span></div></div>`).join(''); slideIndex=(slideIndex+1)%signalItems.length; }
+    function drawMap(traffic,signals){trafficLayer.clearLayers();signalLayer.clearLayers(); (traffic.incidents||[]).forEach(item=>{const score=/high|major|critical/i.test((item.criticality||'')+' '+(item.severity||''))?85:/low|minor/i.test((item.criticality||'')+' '+(item.severity||''))?25:58; if(Array.isArray(item.position)){L.circleMarker(item.position,{radius:7,color:colorFor(score),fillColor:colorFor(score),fillOpacity:.82,weight:1}).bindPopup(`<strong>${item.type||'Incident'}</strong><br>${item.description||''}`).addTo(trafficLayer)}}); (signals.items||[]).forEach(item=>{if(Array.isArray(item.position)){L.circleMarker(item.position,{radius:6,color:getComputedStyle(document.documentElement).getPropertyValue('--blue').trim(),fillColor:getComputedStyle(document.documentElement).getPropertyValue('--blue').trim(),fillOpacity:.8,weight:1}).bindPopup(`<strong>${item.title||'Signal'}</strong><br>${item.summary||''}`).addTo(signalLayer)}});}
+    async function refresh(){const r=regions[regionSelect.value]; map.setView(r.center,r.zoom,{animate:true,duration:.6}); const [traffic,signals]=await Promise.all([getJson(`/api/traffic?bbox=${r.bbox.join(',')}&region=${regionSelect.value}`),getJson(`/api/signals?region=${regionSelect.value}&window=45`)]); signalItems=signals.items||[]; const m=metrics(traffic,signals); regionText.textContent=r.name; watchScore.textContent=Math.round(m.watch); strainScore.textContent=Math.round(m.strain); signalScore.textContent=Math.round(m.signalAccel); closureScore.textContent=m.closureRatio + '%'; modeText.textContent=`${traffic.mode||'traffic'} + ${signals.mode||'signals'}`; lastUpdated.textContent='· ' + new Date().toLocaleTimeString(); renderMiniFeed(signalItems); renderSlide(); drawMap(traffic,signals); }
+    regionSelect.addEventListener('change',refresh);
+    refresh().catch(console.error);
+    setInterval(()=>refresh().catch(console.error),30000);
+    setInterval(renderSlide,35000);
+  </script>
+</body>
+</html>
