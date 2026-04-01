@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Digital Crisis Monitor - Sources</title>
+  <link rel="preconnect" href="https://api.fontshare.com" />
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&f[]=cabinet-grotesk@500,700&display=swap" rel="stylesheet">
+  <style>
+    :root,[data-theme="light"]{--bg:#f6f5f2;--surface:#fcfbf8;--surface2:#f1eee9;--text:#22201c;--muted:#66625d;--primary:#0d6b73;--border:#d6d0c8;--font-body:'Satoshi',sans-serif;--font-display:'Cabinet Grotesk','Satoshi',sans-serif}
+    [data-theme="dark"]{--bg:#121110;--surface:#1a1917;--surface2:#24211f;--text:#f0ebe3;--muted:#b6afa5;--primary:#4f98a3;--border:#393531}
+    *{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body)}a{color:var(--primary)}.wrap{max-width:1100px;margin:0 auto;padding:24px}.head{display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:18px}.head h1{margin:0;font:700 clamp(2rem,4vw,3.4rem)/1 var(--font-display)}.nav{display:flex;gap:10px;flex-wrap:wrap}.nav a,.nav button{padding:11px 14px;border-radius:14px;border:1px solid color-mix(in oklab,var(--text) 10%,transparent);background:var(--surface2);color:var(--text);text-decoration:none}.card{background:var(--surface);border:1px solid color-mix(in oklab,var(--text) 10%,transparent);border-radius:20px;padding:20px;margin-bottom:16px}.card h2{margin:0 0 10px;font:700 1.35rem var(--font-display)}.src{padding:14px 0;border-bottom:1px solid color-mix(in oklab,var(--text) 8%,transparent)}.src:last-child{border-bottom:none}.muted{color:var(--muted)}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="head">
+      <div><h1>Sources & Methods</h1><div class="muted">Separate audit page for live data links, methodology, and deployment notes.</div></div>
+      <nav class="nav"><a href="index.html">Home</a><a href="analysis.html">Analysis</a><button id="themeBtn">Theme</button></nav>
+    </div>
+
+    <section class="card">
+      <h2>Live data endpoints</h2>
+      <div class="src"><strong>X Filtered Stream</strong><div class="muted">Official real-time filtering endpoint for posts.</div><a target="_blank" rel="noopener noreferrer" href="https://docs.x.com/x-api/posts/filtered-stream/introduction">Open source</a></div>
+      <div class="src"><strong>X Filtered Stream Webhooks</strong><div class="muted">Webhook-style delivery for server-side ingestion.</div><a target="_blank" rel="noopener noreferrer" href="https://docs.x.com/x-api/webhooks/stream/quickstart">Open source</a></div>
+      <div class="src"><strong>HERE traffic platform</strong><div class="muted">Traffic flow and incident feeds used by the backend route.</div><a target="_blank" rel="noopener noreferrer" href="https://www.here.com/docs/search?labelkey=developer_guide&page=57">Open source</a></div>
+      <div class="src"><strong>Vercel environment variables</strong><div class="muted">Store secrets outside client code.</div><a target="_blank" rel="noopener noreferrer" href="https://vercel.com/docs/environment-variables">Open source</a></div>
+      <div class="src"><strong>Leaflet heatmap plugin</strong><div class="muted">Heat layer used for optional hotspot overlays on the analysis page.</div><a target="_blank" rel="noopener noreferrer" href="https://github.com/Leaflet/Leaflet.heat">Open source</a></div>
+    </section>
+
+    <section class="card">
+      <h2>How the analysis is done</h2>
+      <div class="src"><strong>Traffic strain</strong><div class="muted">Weighted blend of jam factor, closure count, and disruption density.</div></div>
+      <div class="src"><strong>Signal acceleration</strong><div class="muted">Recent feed items are weighted by confidence and timing instead of simple volume.</div></div>
+      <div class="src"><strong>Convergence watch score</strong><div class="muted">Composite score combining transport friction and signal movement.</div></div>
+    </section>
+
+    <section class="card">
+      <h2>Deployment notes</h2>
+      <div class="src"><strong>Files to keep</strong><div class="muted">Keep <code>api/traffic.js</code>, <code>vercel.json</code>, and <code>.env.example</code> unless you want separate backend changes.</div></div>
+      <div class="src"><strong>Signals backend</strong><div class="muted">This frontend expects your server or feed URL to supply JSON items to <code>/api/signals</code>.</div></div>
+      <div class="src"><strong>Auto deploys</strong><div class="muted">Once committed to GitHub, Vercel redeploys from the connected repository.</div></div>
+    </section>
+  </main>
+  <script>themeBtn.onclick=()=>document.documentElement.setAttribute('data-theme',document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')</script>
+</body>
+</html>

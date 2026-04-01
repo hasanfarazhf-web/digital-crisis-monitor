@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Digital Crisis Monitor - Analysis</title>
+  <link rel="preconnect" href="https://api.fontshare.com" />
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&f[]=cabinet-grotesk@500,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <style>
+    :root,[data-theme="light"]{--bg:#f6f5f2;--surface:#fcfbf8;--surface2:#f1eee9;--text:#22201c;--muted:#66625d;--border:#d6d0c8;--primary:#0d6b73;--danger:#bf4f8d;--warn:#ca8e28;--ok:#4d8b28;--blue:#2f71bc;--radius:20px;--font-body:'Satoshi',sans-serif;--font-display:'Cabinet Grotesk','Satoshi',sans-serif;}
+    [data-theme="dark"]{--bg:#121110;--surface:#1a1917;--surface2:#24211f;--text:#f0ebe3;--muted:#b6afa5;--border:#393531;--primary:#4f98a3;--danger:#d163a7;--warn:#e3a43b;--ok:#75b44d;--blue:#72a7df;}
+    *{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body)}a{color:inherit;text-decoration:none}.wrap{max-width:1380px;margin:0 auto;padding:22px}.top{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:18px}.top h1{margin:0;font:700 clamp(1.9rem,4vw,3.2rem)/1 var(--font-display)}.muted{color:var(--muted)}
+    .nav{display:flex;gap:10px;flex-wrap:wrap}.nav a,.nav button,.control{padding:11px 14px;border-radius:14px;border:1px solid color-mix(in oklab,var(--text) 10%,transparent);background:var(--surface2);color:var(--text)}
+    .grid{display:grid;grid-template-columns:320px minmax(0,1fr);gap:18px}.card{background:var(--surface);border:1px solid color-mix(in oklab,var(--text) 10%,transparent);border-radius:var(--radius)}.side{padding:18px;display:grid;gap:16px;height:fit-content;position:sticky;top:18px}.main{display:grid;gap:18px}.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}.metric{padding:18px;border-radius:18px;background:var(--surface2);cursor:pointer}.metric small{display:block;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}.metric strong{font:700 1.8rem/1 var(--font-display)}
+    .content{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}.mapCard{padding:18px}#map{height:620px;border-radius:18px}.legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.legend span{display:inline-flex;gap:8px;align-items:center;padding:8px 12px;border-radius:999px;background:var(--surface2)}.sw{width:12px;height:12px;border-radius:50%}
+    .feed,.methods,.timeline{padding:18px}.feed-list,.method-list,.time-list{display:grid;gap:12px;max-height:620px;overflow:auto}.feed-item,.method-item,.time-item{padding:14px;border-radius:16px;background:var(--surface2)}
+    dialog{width:min(820px,calc(100vw - 24px));border:none;border-radius:22px;padding:0;background:var(--surface);color:var(--text)} dialog::backdrop{background:rgba(0,0,0,.55)} .modal-head,.modal-body{padding:20px}.modal-head{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid color-mix(in oklab,var(--text) 10%,transparent)} .close{padding:10px 12px;border-radius:999px;background:var(--surface2);border:1px solid color-mix(in oklab,var(--text) 10%,transparent)}
+    @media (max-width:1100px){.grid,.content{grid-template-columns:1fr}.side{position:relative;top:auto}.metrics{grid-template-columns:1fr 1fr}} @media (max-width:700px){.metrics{grid-template-columns:1fr}.wrap{padding:14px}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="top">
+      <div><h1>Analysis Workspace</h1><div class="muted">Dedicated page for metrics, explainers, live feed, and optional heat layers.</div></div>
+      <nav class="nav"><a href="index.html">Home</a><a href="sources.html">Sources</a><button id="themeBtn">Theme</button></nav>
+    </div>
+
+    <div class="grid">
+      <aside class="card side">
+        <div>
+          <strong>Controls</strong>
+          <p class="muted" style="margin:.45rem 0 0">Use the selector to change region and toggle the heat layer.</p>
+        </div>
+        <select id="regionSelect" class="control"></select>
+        <button id="refreshBtn" class="control">Refresh now</button>
+        <button id="heatBtn" class="control">Heatmap: on</button>
+        <div class="method-list" id="methodButtons"></div>
+      </aside>
+
+      <section class="main">
+        <div class="metrics" id="metrics"></div>
+        <div class="content">
+          <article class="card mapCard">
+            <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px"><strong>Operational map</strong><span class="muted" id="statusText">Updating…</span></div>
+            <div id="map"></div>
+            <div class="legend">
+              <span><i class="sw" style="background:var(--ok)"></i>Low pressure</span>
+              <span><i class="sw" style="background:var(--warn)"></i>Moderate pressure</span>
+              <span><i class="sw" style="background:var(--danger)"></i>High pressure</span>
+              <span><i class="sw" style="background:var(--blue)"></i>Signal / heat source</span>
+            </div>
+          </article>
+          <article class="card feed">
+            <strong>Live signal feed</strong>
+            <div class="feed-list" id="feedList" style="margin-top:12px"></div>
+          </article>
+        </div>
+        <article class="card timeline">
+          <strong>Analysis notes</strong>
+          <div class="time-list" style="margin-top:12px">
+            <div class="time-item"><strong>Traffic strain</strong><div class="muted">Mean jam factor and route disruption are combined into a 0-100 stress value.</div></div>
+            <div class="time-item"><strong>Signal acceleration</strong><div class="muted">Recent feed items are weighted by confidence and timing rather than raw volume alone.</div></div>
+            <div class="time-item"><strong>Convergence watch</strong><div class="muted">A blended score flags watch pressure only when multiple indicators move together.</div></div>
+          </div>
+        </article>
+      </section>
+    </div>
+  </main>
+
+  <dialog id="dialog">
+    <div class="modal-head"><div><h2 id="dialogTitle" style="margin:0;font-family:var(--font-display)">Method</h2><p id="dialogLead" class="muted" style="margin:.4rem 0 0"></p></div><button class="close" id="closeBtn">Close</button></div>
+    <div class="modal-body" id="dialogBody"></div>
+  </dialog>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+  <script>
+    const regions={middleEast:{name:'Middle East',center:[26.2,51.6],zoom:6,bbox:[48.4,24.0,54.6,28.5]},taiwan:{name:'Taiwan Strait',center:[24.0,121.0],zoom:7,bbox:[119.2,22.1,122.7,25.7]},westCoast:{name:'US West Coast',center:[34.05,-118.25],zoom:6,bbox:[-123.4,32.0,-117.0,38.8]},eastAfrica:{name:'East Africa',center:[-1.29,36.82],zoom:6,bbox:[35.5,-3.3,38.6,0.9]}};
+    const docs={watch:{title:'Convergence watch score',lead:'Blends transport and signal indicators.',body:'<p>The default blend is 45% traffic strain, 35% incident pressure, and 20% signal acceleration. This score is for triage, not automatic conclusions.</p>'},strain:{title:'Traffic strain',lead:'Measures roadway friction.',body:'<p>Average jam factor, incident count, and closure weights produce a normalized stress score.</p>'},signals:{title:'Signal acceleration',lead:'Measures recent feed velocity.',body:'<p>Recent items are weighted by source credibility and timing to avoid relying on raw volume alone.</p>'},closure:{title:'Closure ratio',lead:'Share of active movement-constraining events.',body:'<p>Road closures and restrictions are divided by all active incidents to estimate direct mobility impairment.</p>'},incidents:{title:'Incident pressure',lead:'Weighted count of active disruptions.',body:'<p>High-severity disruptions contribute more heavily than minor slowdowns.</p>'}};
+    Object.entries(regions).forEach(([k,v])=>{const o=document.createElement('option');o.value=k;o.textContent=v.name;regionSelect.appendChild(o)}); regionSelect.value='middleEast';
+    const map=L.map('map',{preferCanvas:true,zoomControl:true}).setView(regions.middleEast.center,regions.middleEast.zoom); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map); let incidentLayer=L.layerGroup().addTo(map), signalLayer=L.layerGroup().addTo(map), heatLayer=null, heatEnabled=true;
+    const tone=(name)=>getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    const openDoc=(key)=>{const d=docs[key];dialogTitle.textContent=d.title;dialogLead.textContent=d.lead;dialogBody.innerHTML=d.body + '<p style="margin-top:1rem"><a href="sources.html">Open full sources page</a></p>';dialog.showModal();};
+    Object.entries(docs).forEach(([key,val])=>{const b=document.createElement('button');b.className='method-item';b.innerHTML=`<strong>${val.title}</strong><div class="muted" style="margin-top:6px">${val.lead}</div>`;b.onclick=()=>openDoc(key);methodButtons.appendChild(b)});
+    themeBtn.onclick=()=>document.documentElement.setAttribute('data-theme',document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark'); closeBtn.onclick=()=>dialog.close(); heatBtn.onclick=()=>{heatEnabled=!heatEnabled;heatBtn.textContent='Heatmap: '+(heatEnabled?'on':'off'); if(heatLayer){heatEnabled?heatLayer.addTo(map):map.removeLayer(heatLayer)}};
+    async function getJson(url){const r=await fetch(url,{headers:{accept:'application/json'}});if(!r.ok)throw new Error('Request failed');return r.json();}
+    function calc(traffic,signals){const incidents=traffic.incidents||[];const active=incidents.length;const closures=incidents.filter(x=>/close|blocked|restriction/i.test((x.type||'')+' '+(x.description||''))).length;const severe=incidents.filter(x=>/high|major|critical/i.test((x.criticality||'')+' '+(x.severity||''))).length;const avgJam=(traffic.flow||[]).length?(traffic.flow.reduce((a,b)=>a+Number(b.jamFactor||0),0)/(traffic.flow||[]).length):0;const incidentPressure=Math.min(100,(active*8)+(closures*12)+(severe*10));const strain=Math.min(100,(avgJam*9)+(closures*6)+(Math.min(active,8)*3));const signalAccel=Math.min(100,(signals.items||[]).reduce((a,b)=>a+((Number(b.score||.5)*Number(b.credibility||.5))*10),0));const watch=Math.min(100,(strain*.45)+(incidentPressure*.35)+(signalAccel*.20));return {active,closures,severe,avgJam,incidentPressure,strain,signalAccel,watch};}
+    function metric(label,val,key,sub,color){const el=document.createElement('button');el.className='metric';el.onclick=()=>openDoc(key);el.innerHTML=`<small>${label}</small><strong style="color:${color}">${val}</strong><div class="muted" style="margin-top:8px">${sub}</div>`;return el;}
+    function draw(traffic,signals){incidentLayer.clearLayers();signalLayer.clearLayers(); if(heatLayer && map.hasLayer(heatLayer)) map.removeLayer(heatLayer); const heat=[]; (traffic.incidents||[]).forEach(item=>{if(Array.isArray(item.position)){const severe=/high|major|critical/i.test((item.criticality||'')+' '+(item.severity||''));const low=/low|minor/i.test((item.criticality||'')+' '+(item.severity||'')); const color=severe?tone('--danger'):low?tone('--ok'):tone('--warn'); L.circleMarker(item.position,{radius:8,color,fillColor:color,fillOpacity:.82,weight:1}).bindPopup(`<strong>${item.type||'Incident'}</strong><br>${item.description||''}`).addTo(incidentLayer); heat.push([item.position[0],item.position[1],severe?0.95:0.55]);}}); (signals.items||[]).forEach(item=>{if(Array.isArray(item.position)){L.circleMarker(item.position,{radius:6,color:tone('--blue'),fillColor:tone('--blue'),fillOpacity:.78,weight:1}).bindPopup(`<strong>${item.title||'Signal'}</strong><br>${item.summary||''}`).addTo(signalLayer); heat.push([item.position[0],item.position[1],Math.max(.35,Number(item.score||.5))]);}}); heatLayer=L.heatLayer(heat,{radius:28,blur:20,maxZoom:10,gradient:{0.25:tone('--ok'),0.5:tone('--warn'),0.8:tone('--danger')}}); if(heatEnabled) heatLayer.addTo(map); }
+    function renderFeed(items){feedList.innerHTML=items.slice(0,18).map(item=>`<div class="feed-item"><strong>${item.title||'Signal item'}</strong><div class="muted" style="margin-top:6px">${item.summary||''}</div><div style="margin-top:8px;font-size:.9rem" class="muted">${item.source||'Feed'} · credibility ${Math.round((Number(item.credibility||.5))*100)}%</div></div>`).join('') || '<div class="feed-item"><strong>No items</strong><div class="muted" style="margin-top:6px">Connect your live feed.</div></div>'}
+    async function refresh(){const r=regions[regionSelect.value]; map.setView(r.center,r.zoom,{animate:true,duration:.8}); statusText.textContent='Updating '+r.name+'…'; const [traffic,signals]=await Promise.all([getJson(`/api/traffic?bbox=${r.bbox.join(',')}&region=${regionSelect.value}`),getJson(`/api/signals?region=${regionSelect.value}&window=45`)]); const m=calc(traffic,signals); metrics.innerHTML=''; metrics.append(metric('Watch score',Math.round(m.watch),'watch',r.name,m.watch>=80?tone('--danger'):m.watch>=50?tone('--warn'):tone('--ok'))); metrics.append(metric('Traffic strain',Math.round(m.strain),'strain',`${m.avgJam?m.avgJam.toFixed(1):'n/a'} mean jam`,m.strain>=80?tone('--danger'):m.strain>=50?tone('--warn'):tone('--ok'))); metrics.append(metric('Signal accel.',Math.round(m.signalAccel),'signals',`${(signals.items||[]).length} recent items`,m.signalAccel>=80?tone('--danger'):m.signalAccel>=50?tone('--warn'):tone('--ok'))); metrics.append(metric('Closure ratio',`${m.active?Math.round((m.closures/m.active)*100):0}%`,'closure',`${m.closures} closure-type items`,m.closures?tone('--warn'):tone('--ok'))); metrics.append(metric('Incident pressure',Math.round(m.incidentPressure),'incidents',`${m.active} active disruptions`,m.incidentPressure>=80?tone('--danger'):m.incidentPressure>=50?tone('--warn'):tone('--ok'))); draw(traffic,signals); renderFeed(signals.items||[]); statusText.textContent=`Updated ${new Date().toLocaleTimeString()} · ${traffic.mode||'traffic'} + ${signals.mode||'signals'}`; }
+    refreshBtn.onclick=()=>refresh().catch(console.error); regionSelect.onchange=()=>refresh().catch(console.error); refresh().catch(console.error); setInterval(()=>refresh().catch(console.error),30000);
+  </script>
+</body>
+</html>
